@@ -1,38 +1,44 @@
 import streamlit as st
+from PIL import Image
 
-st.set_page_config(page_title="Mammogram Classifier & Chatbot", layout="wide")
+st.set_page_config(page_title="Mammo Chatbot", layout="wide")
 
-st.title("📸 Mammogram Classifier + Breast Cancer Chatbot")
+st.title("💬 Mammogram Chatbot")
 
-st.write(
-    "Upload one mammogram image to get a benign / malignant prediction, and ask breast cancer questions using the chatbot."
-)
+# --- session state to store conversation ---
+if "messages" not in st.session_state:
+    st.session_state["messages"] = []
 
-col1, col2 = st.columns([1, 1])
-
-# Image upload and prediction
-with col1:
-    st.subheader("1) Upload mammogram")
-    uploaded_image = st.file_uploader(
-        "Upload one image (.png, .jpg, .jpeg)", type=["png", "jpg", "jpeg"]
-    )
-
-    if uploaded_image is not None:
-        img = Image.open(uploaded_image).convert("RGB")
-        st.image(img, caption="Uploaded image", use_column_width=True)
-        if st.button("Run prediction"):
-            st.success("Prediction result will be displayed here.")
+# --- render chat history ---
+for msg in st.session_state["messages"]:
+    if msg["role"] == "user":
+        st.chat_message("user").write(msg["content"])
     else:
-        st.info("No image uploaded yet.")
+        st.chat_message("assistant").write(msg["content"])
 
-# Chatbot section
-with col2:
-    st.subheader("2) Chatbot — Ask breast cancer questions")
-    user_q = st.text_input(
-        "Ask a question (e.g. 'What does a BI-RADS 4 mean?')"
-    )
-    if st.button("Ask") and user_q.strip() != "":
-        st.success("Answer will be displayed here.")
+# --- chat input ---
+prompt = st.chat_input("Ask a question or upload an image...")
 
-    st.markdown("---")
-    st.info("Chat history will appear here.")
+if prompt:
+    # user sends text
+    st.session_state["messages"].append({"role": "user", "content": prompt})
+    st.chat_message("user").write(prompt)
+
+    # placeholder bot reply (replace with your RAG answer fn)
+    answer = f"🤖 Answer for: {prompt}"
+    st.session_state["messages"].append({"role": "assistant", "content": answer})
+    st.chat_message("assistant").write(answer)
+
+# --- image upload inside chat ---
+uploaded_file = st.file_uploader("Upload mammogram image", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
+
+if uploaded_file:
+    img = Image.open(uploaded_file).convert("RGB")
+    st.chat_message("user").image(img, caption="Uploaded image")
+
+    # placeholder prediction (replace with your model inference)
+    prediction = "benign"  # or "malignant"
+    reply = f"📷 Prediction: **{prediction}**"
+
+    st.session_state["messages"].append({"role": "assistant", "content": reply})
+    st.chat_message("assistant").write(reply)
