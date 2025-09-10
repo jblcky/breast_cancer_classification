@@ -1,44 +1,100 @@
 import streamlit as st
 from PIL import Image
+from datetime import datetime
 
-st.set_page_config(page_title="Mammo Chatbot", layout="wide")
+# --- Page Config ---
+st.set_page_config(page_title="Mammogram Chatbot", page_icon="🩺", layout="centered")
 
-st.title("💬 Mammogram Chatbot")
+# --- Custom CSS for styling ---
+st.markdown("""
+<style>
+    /* Page background */
+    .stApp {
+        background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+        font-family: 'Segoe UI', sans-serif;
+    }
 
-# --- session state to store conversation ---
+    /* Chat container */
+    .chat-container {
+        max-width: 700px;
+        margin: auto;
+        padding: 20px;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0px 6px 15px rgba(0,0,0,0.1);
+    }
+
+    /* Chat bubble - user */
+    .user-bubble {
+        background: #DCF8C6;
+        color: black;
+        padding: 10px 15px;
+        border-radius: 15px;
+        margin: 5px 0;
+        display: inline-block;
+        max-width: 80%;
+    }
+
+    /* Chat bubble - assistant */
+    .bot-bubble {
+        background: #E6E6E6;
+        color: black;
+        padding: 10px 15px;
+        border-radius: 15px;
+        margin: 5px 0;
+        display: inline-block;
+        max-width: 80%;
+    }
+
+    /* Align bubbles */
+    .user-msg { text-align: right; }
+    .bot-msg { text-align: left; }
+</style>
+""", unsafe_allow_html=True)
+
+# --- Title ---
+st.markdown("<h2 style='text-align: center;'>🩺 Mammogram Chatbot</h2>", unsafe_allow_html=True)
+
+# --- Session State ---
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
 
-# --- render chat history ---
-for msg in st.session_state["messages"]:
-    if msg["role"] == "user":
-        st.chat_message("user").write(msg["content"])
-    else:
-        st.chat_message("assistant").write(msg["content"])
+# --- Chat Container ---
+with st.container():
+    st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
 
-# --- chat input ---
-prompt = st.chat_input("Ask a question or upload an image...")
+    for msg in st.session_state["messages"]:
+        if msg["role"] == "user":
+            st.markdown(f"<div class='user-msg'><div class='user-bubble'>{msg['content']}</div></div>", unsafe_allow_html=True)
+        else:
+            st.markdown(f"<div class='bot-msg'><div class='bot-bubble'>{msg['content']}</div></div>", unsafe_allow_html=True)
 
-if prompt:
-    # user sends text
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# --- Chat Input ---
+col1, col2 = st.columns([4,1])
+with col1:
+    prompt = st.text_input("Type your question here...", key="input")
+with col2:
+    send_btn = st.button("Send")
+
+if send_btn and prompt:
+    # User message
     st.session_state["messages"].append({"role": "user", "content": prompt})
-    st.chat_message("user").write(prompt)
 
-    # placeholder bot reply (replace with your RAG answer fn)
-    answer = f"🤖 Answer for: {prompt}"
-    st.session_state["messages"].append({"role": "assistant", "content": answer})
-    st.chat_message("assistant").write(answer)
+    # Placeholder bot reply (replace with your RAG backend)
+    reply = f"🤖 Answer for: {prompt}"
+    st.session_state["messages"].append({"role": "assistant", "content": reply})
+    st.experimental_rerun()
 
-# --- image upload inside chat ---
-uploaded_file = st.file_uploader("Upload mammogram image", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
-
+# --- Image Upload ---
+uploaded_file = st.file_uploader("Upload mammogram image", type=["png", "jpg", "jpeg"])
 if uploaded_file:
     img = Image.open(uploaded_file).convert("RGB")
-    st.chat_message("user").image(img, caption="Uploaded image")
+    st.image(img, caption="Uploaded Mammogram", use_column_width=True)
 
-    # placeholder prediction (replace with your model inference)
+    # Placeholder prediction (replace with your model inference)
     prediction = "benign"  # or "malignant"
     reply = f"📷 Prediction: **{prediction}**"
-
     st.session_state["messages"].append({"role": "assistant", "content": reply})
-    st.chat_message("assistant").write(reply)
+    st.experimental_rerun()
