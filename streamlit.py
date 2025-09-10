@@ -3,7 +3,7 @@ from PIL import Image
 from datetime import datetime
 
 # --- Page Config ---
-st.set_page_config(page_title="Mammogram Chatbot", page_icon="🩺", layout="centered")
+st.set_page_config(page_title="Breast Cancer Chatbot", page_icon="🩺", layout="centered")
 
 # --- Custom CSS for styling ---
 st.markdown("""
@@ -88,7 +88,7 @@ if send_btn and prompt:
     st.experimental_rerun()
 
 # --- Image Upload ---
-uploaded_file = st.file_uploader("Upload mammogram image", type=["png", "jpg", "jpeg"])
+uploaded_file = st.file_uploader("Upload image", type=["png", "jpg", "jpeg"])
 if uploaded_file:
     img = Image.open(uploaded_file).convert("RGB")
     st.image(img, caption="Uploaded Mammogram", use_column_width=True)
