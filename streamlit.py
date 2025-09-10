@@ -1,5 +1,11 @@
 import streamlit as st
-from PIL import Image
+import requests
+import io
+
+# --- Backend URLs ---
+API_URL = "http://localhost:8000"  # change if deployed
+PREDICT_URL = f"{API_URL}/predict-image"
+ASK_URL = f"{API_URL}/ask-question"
 
 # --- Page Config ---
 st.set_page_config(page_title="Breast Cancer Chatbot", page_icon="🩺", layout="wide")
@@ -83,19 +89,41 @@ prompt = st.chat_input("Ask a question or upload an image...")
 
 if prompt:
     st.session_state["messages"].append({"role": "user", "content": prompt})
-    # --- Placeholder bot reply (replace with your RAG logic) ---
-    reply = f"🤖 Answer for: {prompt}"
-    st.session_state["messages"].append({"role": "assistant", "content": reply})
-    st.experimental_rerun()
+    st.chat_message("user").write(prompt)
+
+    try:
+        # call FastAPI ask-question endpoint
+        res = requests.post(ASK_URL, json={"question": prompt})
+        if res.status_code == 200:
+            answer = res.json().get("Answer", "⚠️ No answer")
+        else:
+            answer = f"⚠️ Error: {res.status_code}"
+    except Exception as e:
+        answer = f"⚠️ Could not connect to backend: {e}"
+
+    st.session_state["messages"].append({"role": "assistant", "content": answer})
+    st.chat_message("assistant").write(answer)
 
 # --- Image Upload ---
-uploaded_file = st.file_uploader("Upload image", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
-if uploaded_file:
-    img = Image.open(uploaded_file).convert("RGB")
-    st.image(img, caption="Uploaded Mammogram", use_column_width=True)
+uploaded_file = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
 
-    # --- Placeholder prediction (replace with your model inference) ---
-    prediction = "benign"  # or "malignant"
-    reply = f"📷 Prediction: **{prediction}**"
+if uploaded_file:
+    # Show the uploaded image in chat (optional, for user confirmation)
+    st.chat_message("user").image(uploaded_file, caption="Uploaded image")
+
+    # Send raw file directly to backend
+    try:
+        files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
+        res = requests.post(PREDICT_URL, files=files)
+        if res.status_code == 200:
+            data = res.json()
+            prediction = data.get("Prediction", "Unknown")
+            confidence = data.get("Confidence", "?")
+            reply = f"📷 Prediction: **{prediction}** (Confidence: {confidence})"
+        else:
+            reply = f"⚠️ Error: {res.status_code}"
+    except Exception as e:
+        reply = f"⚠️ Could not connect to backend: {e}"
+
     st.session_state["messages"].append({"role": "assistant", "content": reply})
-    st.experimental_rerun()
+    st.chat_message("assistant").write(reply)
