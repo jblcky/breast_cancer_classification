@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 
 # --- Backend URLs ---
-API_URL = "https://mammogram-ragv0-0-236600620437.asia-southeast1.run.app"  # change if deployed
+API_URL = "https://mammogram-ragv0-0-236600620437.asia-southeast1.run.app"
 PREDICT_URL = f"{API_URL}/predict-image"
 ASK_URL = f"{API_URL}/ask-question"
 
@@ -79,15 +79,38 @@ st.markdown(f"""
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
 
+# --- Backend Helper Functions ---
+def get_rag_answer(question: str):
+    try:
+        res = requests.post(ASK_URL, json={"question": question})
+        if res.status_code == 200:
+            return res.json().get("Answer", "⚠️ No answer")
+        else:
+            return f"⚠️ Error: {res.status_code}"
+    except Exception as e:
+        return f"⚠️ Could not connect to backend: {e}"
+
+def get_image_prediction(uploaded_file):
+    try:
+        files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
+        res = requests.post(PREDICT_URL, files=files)
+        if res.status_code == 200:
+            data = res.json()
+            prediction = data.get("Prediction", "Unknown")
+            confidence = data.get("Confidence", "?")
+            return f"📷 Prediction: **{prediction}** (Confidence: {confidence})"
+        else:
+            return f"⚠️ Error: {res.status_code}"
+    except Exception as e:
+        return f"⚠️ Could not connect to backend: {e}"
+
 # --- Chat Container ---
 st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
-
 for msg in st.session_state["messages"]:
     if msg["role"] == "user":
         st.markdown(f"<div class='bubble user-bubble'>{msg['content']}</div>", unsafe_allow_html=True)
     else:
         st.markdown(f"<div class='bubble bot-bubble'>{msg['content']}</div>", unsafe_allow_html=True)
-
 st.markdown("</div>", unsafe_allow_html=True)
 
 # --- Chat Input ---
@@ -97,15 +120,7 @@ if prompt:
     st.session_state["messages"].append({"role": "user", "content": prompt})
     st.chat_message("user").write(prompt)
 
-    try:
-        res = requests.post(ASK_URL, json={"question": prompt})
-        if res.status_code == 200:
-            answer = res.json().get("Answer", "⚠️ No answer")
-        else:
-            answer = f"⚠️ Error: {res.status_code}"
-    except Exception as e:
-        answer = f"⚠️ Could not connect to backend: {e}"
-
+    answer = get_rag_answer(prompt)
     st.session_state["messages"].append({"role": "assistant", "content": answer})
     st.chat_message("assistant").write(answer)
 
@@ -114,19 +129,6 @@ uploaded_file = st.file_uploader("", type=["png", "jpg", "jpeg"], label_visibili
 
 if uploaded_file:
     st.chat_message("user").image(uploaded_file, caption="Uploaded image")
-
-    try:
-        files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
-        res = requests.post(PREDICT_URL, files=files)
-        if res.status_code == 200:
-            data = res.json()
-            prediction = data.get("Prediction", "Unknown")
-            confidence = data.get("Confidence", "?")
-            reply = f"📷 Prediction: **{prediction}** (Confidence: {confidence})"
-        else:
-            reply = f"⚠️ Error: {res.status_code}"
-    except Exception as e:
-        reply = f"⚠️ Could not connect to backend: {e}"
-
+    reply = get_image_prediction(uploaded_file)
     st.session_state["messages"].append({"role": "assistant", "content": reply})
     st.chat_message("assistant").write(reply)
