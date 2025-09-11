@@ -82,7 +82,8 @@ if "messages" not in st.session_state:
 # --- Backend Helper Functions ---
 def get_rag_answer(question: str):
     try:
-        res = requests.post(ASK_URL, json={"question": question})
+        # Send question as query parameter
+        res = requests.post(f"{ASK_URL}?question={question}")
         if res.status_code == 200:
             return res.json().get("Answer", "⚠️ No answer")
         else:
