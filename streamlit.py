@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-import io
 
 # --- Backend URLs ---
 API_URL = "http://localhost:8000"  # change if deployed
@@ -8,28 +7,32 @@ PREDICT_URL = f"{API_URL}/predict-image"
 ASK_URL = f"{API_URL}/ask-question"
 
 # --- Page Config ---
-st.set_page_config(page_title="Breast Cancer Chatbot", page_icon="🩺", layout="wide")
+st.set_page_config(page_title="Breast Cancer Chatbot", page_icon="🩺", layout="centered")
 
-# --- Theme Toggle ---
+# --- Theme Toggle in Header ---
 if "theme" not in st.session_state:
     st.session_state["theme"] = "light"
 
-theme_choice = st.sidebar.radio("Theme", ["🌞 Light", "🌙 Dark"])
-st.session_state["theme"] = "dark" if "Dark" in theme_choice else "light"
+col1, col2, col3 = st.columns([1, 6, 1])
+with col2:
+    st.markdown("<h2 style='text-align: center;'>🩺 Breast Cancer Chatbot</h2>", unsafe_allow_html=True)
+with col3:
+    if st.button("🌞" if st.session_state["theme"] == "light" else "🌙"):
+        st.session_state["theme"] = "dark" if st.session_state["theme"] == "light" else "light"
 
 # --- Colors for themes ---
 if st.session_state["theme"] == "light":
-    bg_color = "#F9FAFB"
-    user_color = "#2563EB"     # Blue
-    bot_color = "#E5E7EB"      # Light gray
+    bg_color = "#FFFFFF"
+    user_color = "#2563EB"
+    bot_color = "#F1F5F9"
     font_color = "#111827"
 else:
-    bg_color = "#111827"
-    user_color = "#3B82F6"     # Bright blue
-    bot_color = "#374151"      # Dark gray
+    bg_color = "#0F172A"
+    user_color = "#3B82F6"
+    bot_color = "#1E293B"
     font_color = "#F9FAFB"
 
-# --- Custom CSS ---
+# --- Custom CSS (Gemini style) ---
 st.markdown(f"""
 <style>
     .stApp {{
@@ -38,18 +41,19 @@ st.markdown(f"""
         font-family: 'Segoe UI', sans-serif;
     }}
     .chat-container {{
-        max-width: 800px;
+        max-width: 720px;
         margin: auto;
         padding: 20px;
     }}
     .bubble {{
-        padding: 12px 16px;
-        border-radius: 20px;
-        margin: 8px 0;
+        padding: 14px 18px;
+        border-radius: 18px;
+        margin: 10px 0;
         display: inline-block;
-        max-width: 80%;
+        max-width: 85%;
         word-wrap: break-word;
-        font-size: 15px;
+        font-size: 16px;
+        line-height: 1.5;
     }}
     .user-bubble {{
         background: {user_color};
@@ -63,11 +67,13 @@ st.markdown(f"""
         float: left;
         clear: both;
     }}
+    .stChatInput textarea {{
+        border-radius: 25px !important;
+        padding: 14px !important;
+        font-size: 16px !important;
+    }}
 </style>
 """, unsafe_allow_html=True)
-
-# --- Title ---
-st.markdown("<h2 style='text-align: center;'>🩺 Breast Cancer Chatbot</h2>", unsafe_allow_html=True)
 
 # --- Session State ---
 if "messages" not in st.session_state:
@@ -85,14 +91,13 @@ for msg in st.session_state["messages"]:
 st.markdown("</div>", unsafe_allow_html=True)
 
 # --- Chat Input ---
-prompt = st.chat_input("Ask a question or upload an image...")
+prompt = st.chat_input("Ask about breast cancer or upload an image...")
 
 if prompt:
     st.session_state["messages"].append({"role": "user", "content": prompt})
     st.chat_message("user").write(prompt)
 
     try:
-        # call FastAPI ask-question endpoint
         res = requests.post(ASK_URL, json={"question": prompt})
         if res.status_code == 200:
             answer = res.json().get("Answer", "⚠️ No answer")
@@ -105,13 +110,11 @@ if prompt:
     st.chat_message("assistant").write(answer)
 
 # --- Image Upload ---
-uploaded_file = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
+uploaded_file = st.file_uploader("", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
 
 if uploaded_file:
-    # Show the uploaded image in chat (optional, for user confirmation)
     st.chat_message("user").image(uploaded_file, caption="Uploaded image")
 
-    # Send raw file directly to backend
     try:
         files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
         res = requests.post(PREDICT_URL, files=files)
