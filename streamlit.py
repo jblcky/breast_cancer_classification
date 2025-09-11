@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 
 # --- Backend URLs ---
-API_URL = "http://localhost:8000"  # change if deployed
+API_URL = "https://mammogram-ragv0-0-236600620437.asia-southeast1.run.app/"  # change if deployed
 PREDICT_URL = f"{API_URL}/predict-image"
 ASK_URL = f"{API_URL}/ask-question"
 
