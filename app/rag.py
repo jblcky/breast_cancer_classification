@@ -1,12 +1,22 @@
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from langchain.chains import RetrievalQA
-from langchain.vectorstores import FAISS
-from langchain.document_loaders import TextLoader, PyPDFLoader, Docx2txtLoader, CSVLoader
+from langchain_community.document_loaders import TextLoader, PyPDFLoader, Docx2txtLoader, CSVLoader
 from langchain.schema import Document
+from langchain_community.vectorstores import FAISS
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain.chains.retrieval import create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_core.prompts import ChatPromptTemplate
 import os
 from pathlib import Path
 from typing import List, Union
+
+
+def _get_openai_embeddings(model: str) -> OpenAIEmbeddings:
+    """Internal helper to create an OpenAIEmbeddings object."""
+    api_key = os.getenv('OPENAI_API_KEY')
+    if not api_key:
+        raise ValueError("[ERROR] OPENAI_API_KEY not set in environment.")
+    return OpenAIEmbeddings(openai_api_key=api_key, model=model)
 
 
 def load_documents(folder_path: str,
@@ -96,13 +106,7 @@ def create_and_save_vectorstore(
     except Exception as e:
         raise FileNotFoundError(f"[ERROR] Cannot create save_path: {save_path}. {str(e)}")
 
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise ValueError("[ERROR] OPENAI_API_KEY not set in environment.")
-
-    # Create embeddings
-    embeddings = OpenAIEmbeddings(openai_api_key=api_key,
-                                  model=embedding_model)
+    embeddings = _get_openai_embeddings(embedding_model)
 
     # Build vectorstore
     vectorstore = FAISS.from_documents(documents, embeddings)
@@ -134,25 +138,31 @@ def load_vectorstore(save_path: str = "vectorstore",
     if not save_path.exists() or not any(save_path.iterdir()):
         raise FileNotFoundError(f"[ERROR] Vectorstore folder not found or empty: {save_path.resolve()}")
 
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise ValueError("[ERROR] OPENAI_API_KEY not set in environment.")
+    embeddings = _get_openai_embeddings(embedding_model)
 
-    embeddings = OpenAIEmbeddings(openai_api_key=api_key,
-                                  model=embedding_model)
     vectorstore = FAISS.load_local(save_path, embeddings, allow_dangerous_deserialization=True)
-
+    print(f"[INFO] Vectorstore loaded from: {save_path.resolve()}")
     return vectorstore
 
 
+# A more robust prompt template specifically for a medical context
+MEDICAL_SYSTEM_PROMPT = """
+You are an expert assistant specializing in providing information about breast cancer based on a given set of documents.
+Your task is to answer user questions accurately using ONLY the information available in the provided context.
+
+Follow these rules strictly:
+1.  Base your entire answer on the context provided. Do not use any external knowledge.
+2.  If the context does not contain the information needed to answer the question, you MUST state: "I cannot answer this question based on the provided information."
+3.  Directly quote relevant parts of the context to support your answer where possible.
+4.  After every answer, you MUST include the following disclaimer:
+    "Disclaimer: This information is for informational purposes only and does not constitute medical advice. Please consult with a qualified healthcare professional for any medical concerns."
+"""
 
 def qa_chain(
     vectorstore: FAISS,
     model_name: str = "gpt-3.5-turbo",
     temperature: float = 0.0,
-    top_k: int = 5,
-    chain_type: str = "refine",  # alternatives: "map_reduce", "refine"
-    system_prompt: str = None ) -> RetrievalQA:
+    top_k: int = 5):
     """
     Create a RetrievalQA chain using a pre-loaded FAISS vectorstore..
 
@@ -167,15 +177,21 @@ def qa_chain(
         RetrievalQA: Initialized QA chain ready to answer questions.
 
     """
-    if system_prompt:
-        llm = ChatOpenAI(model_name=model_name, temperature=temperature,
-                         model_kwargs={"system_message": system_prompt})
+    llm = ChatOpenAI(model_name=model_name, temperature=temperature)
+
+    # Use the safe, specialized medical prompt template
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", MEDICAL_SYSTEM_PROMPT),
+        ("human", "Context:\n{context}\n\nQuestion: {input}\nAnswer:")
+    ])
+
+    # Create the combine documents chain
+    combine_docs_chain = create_stuff_documents_chain(llm=llm, prompt=prompt)
 
     # Create QA chain
-    qa = RetrievalQA.from_chain_type(
-        llm=llm,
-        retriever=vectorstore.as_retriever(search_kwargs={"k": top_k}),
-        chain_type=chain_type
-    )
+    qa = create_retrieval_chain(
+    retriever=vectorstore.as_retriever(search_kwargs={"k": top_k}),
+    combine_docs_chain=combine_docs_chain
+)
 
     return qa

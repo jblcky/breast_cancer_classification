@@ -2,6 +2,11 @@ from fastapi import FastAPI, UploadFile, File
 from app.predict import predict_image
 from app.model import model
 from app.preprocessor import preprocess_images_resnet50_bytes
+from app.rag import load_vectorstore, qa_chain
+from dotenv import load_dotenv
+
+# Load variables from .env file
+load_dotenv()
 
 app = FastAPI()
 
@@ -24,7 +29,14 @@ async def predict_image_endpoint(file: UploadFile = File(...)):
         "Confidence": f"{confidence_percent:.0f}%"
     }
 
+VECTORSTORE_PATH = 'app/vectorstore'
+vectorstore = load_vectorstore(VECTORSTORE_PATH)
+question_answer = qa_chain(vectorstore)
+
 @app.post("/ask-question")
 async def ask_question_endpoint(question: str):
-    answer = answer_question(question)
-    return {"answer": answer}
+    # pass input as dict
+    result = question_answer.invoke({"input": question})
+
+    # Get the final answer from the 'output' key
+    return {"Answer": result['answer']}

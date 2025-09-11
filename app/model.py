@@ -4,7 +4,7 @@ from tensorflow.keras.layers import Dense, Dropout, GlobalAveragePooling2D
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import layers, regularizers, models
 import tensorflow as tf
-from data_augmentation import get_data_augmentation
+from app.data_augmentation import get_data_augmentation
 
 
 def initialize_resnet_model(input_shape=(224,224,3)):
@@ -38,6 +38,6 @@ def initialize_resnet_model(input_shape=(224,224,3)):
     return model
 
 
-MODEL_PATH = 'saved_model/resnet_cnn_model_version2.weights.h5'
+MODEL_PATH = 'app/saved_model/resnet_cnn_model_version2.weights.h5'
 model = initialize_resnet_model()
 model.load_weights(MODEL_PATH)

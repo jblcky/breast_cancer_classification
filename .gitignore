@@ -44,4 +44,5 @@ data/
 # Folders & files
 test_image/
 saved_model/
+vectorstore/
 test.ipynb

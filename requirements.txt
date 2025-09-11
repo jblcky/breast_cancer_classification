@@ -1,5 +1,18 @@
 fastapi
 uvicorn
-pandas
 numpy
-streamlit
+tensorflow
+pillow
+requests
+python-multipart
+faiss-cpu
+dotenv
+pathlib
+typing
+
+
+# LangChain ecosystem
+langchain
+langchain-openai
+langchain-community
+langchain-core
